@@ -34,11 +34,7 @@ STATUS_PARAMETERS = {
 class UPS():
     def __init__(self, max_logs:int = 1000):
 
-        self.model_name = ""
-        self.firware_number = ""
-        self.rating_voltage = ""
-        self.rating_power = ""
-
+        self.properties = self.update_properties()
         self.log = [None]*max_logs
 
     def parse_fields(self, text):
@@ -59,14 +55,27 @@ class UPS():
                 fields.append((parameter, data))
         return fields
 
-    def read_status(self):
-        # this will need sudo.
-        command = ['sudo', 'pwrstat', '-status']
-
+    def __service_request(self, command):
+        command = command.split(' ')
         # https://stackoverflow.com/questions/8217613/how-to-get-data-from-command-line-from-within-a-python-program
         p = subprocess.Popen(command, stdout=subprocess.PIPE)
-        text = p.stdout.read()
         retcode = p.wait()
+        text = p.stdout.read().decode()
+        return text
+    
+    def update_properties(self):
+        text = self.__service_request("sudo pwrstat -status")
+
+        properties = PROPERTIES_PARAMETERS
+        for field in self.parse_fields(text):
+            if field[0] in PROPERTIES_PARAMETERS:
+                properties[field[0]] = field[1]
+        
+        return properties
+
+    def read_status(self):
+        # this will need sudo.
+        text = self.__service_request("sudo pwrstat -status")
 
         new_log = STATUS_PARAMETERS
         new_log["Time"] = time.time()
